@@ -246,12 +246,8 @@ stock bool:GetTeamRankName(Team:teamid, TeamRank:rankid, name[], size = sizeof (
  * # Member
  */
 
-stock TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "", TeamRank:rankid = INVALID_TEAM_RANK_ID) {
+stock TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "") {
     if (!IsValidTeam(teamid)) {
-        return INVALID_TEAM_MEMBER_ID;
-    }
-
-    if (!IsValidTeamRank(teamid, rankid)) {
         return INVALID_TEAM_MEMBER_ID;
     }
 
@@ -268,8 +264,6 @@ stock TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const 
     } else {
         gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_PLAYER_ID] = playerid;
     }
-
-    gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_RANK_ID] = rankid;
 
     CallLocalFunction("OnTeamMemberAdd", "ii", _:teamid, _:memberid);
 
