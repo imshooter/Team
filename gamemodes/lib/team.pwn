@@ -214,11 +214,11 @@ stock GetTeamMaxMembers(Team:teamid) {
 
 stock TeamRank:AddTeamRank(Team:teamid, const name[]) {
     if (!IsValidTeam(teamid)) {
-        return INVALID_TEAM_MEMBER_ID;
+        return INVALID_TEAM_RANK_ID;
     }
 
     new const
-        TeamRank:rankid = TeamMember:Iter_Alloc(TeamRank[teamid])
+        TeamRank:rankid = TeamRank:Iter_Alloc(TeamRank[teamid])
     ;
 
     strcopy(gTeamRankData[teamid][rankid][E_TEAM_RANK_NAME], name);

@@ -29,6 +29,7 @@ static
     DBID:gUserDBID[MAX_PLAYERS],
     DBID:gTeamDBID[MAX_TEAMS],
     DBID:gZoneDBID[MAX_ZONES],
+    DBID:gTeamRankDBID[MAX_TEAMS][MAX_TEAM_RANKS],
     DBID:gTeamMemberDBID[MAX_TEAMS][MAX_TEAM_MEMBERS],
     DBID:gTeamMemberUserDBID[MAX_TEAMS][MAX_TEAM_MEMBERS],
     DBID:gTeamMemberRankDBID[MAX_TEAMS][MAX_TEAM_MEMBERS]
@@ -36,6 +37,7 @@ static
 
 forward OnTeamRetrieve();
 forward OnZoneRetrieve(Team:teamid);
+forward OnRankRetrieve(Team:teamid);
 forward OnMemberRetrieve(Team:teamid);
 
 main(){}
@@ -45,10 +47,10 @@ main(){}
  */
 
 FetchTeam(playerid) {
-    foreach (new Team:t : Team) {
-        foreach (new TeamMember:m : TeamMember[t]) {
-            if (gTeamMemberDBID[t][m] == gUserDBID[playerid]) {
-                SetTeamMemberPlayer(t, m, playerid);
+    foreach (new Team:teamid : Team) {
+        foreach (new TeamMember:memberid : TeamMember[teamid]) {
+            if (gTeamMemberUserDBID[teamid][memberid] == gUserDBID[playerid]) {
+                SetTeamMemberPlayer(teamid, memberid, playerid);
                 break;
             }
         }
@@ -119,12 +121,15 @@ public OnTeamRetrieve() {
         cache_get_value_int(i, "id", _:gTeamDBID[id]);
 
         mysql_format(MYSQL_DEFAULT_HANDLE, query, sizeof (query), "SELECT * FROM `zones` WHERE `team_id` = %i;", _:gTeamDBID[id]);
-        mysql_pquery(MYSQL_DEFAULT_HANDLE, query, "OnZoneRetrieve", "i", _:id);
+        mysql_tquery(MYSQL_DEFAULT_HANDLE, query, "OnZoneRetrieve", "i", _:id);
+
+        mysql_format(MYSQL_DEFAULT_HANDLE, query, sizeof (query), "SELECT * FROM `ranks` WHERE `team_id` = %i;", _:gTeamDBID[id]);
+        mysql_tquery(MYSQL_DEFAULT_HANDLE, query, "OnRankRetrieve", "i", _:id);
 
         mysql_format(MYSQL_DEFAULT_HANDLE, query, sizeof (query), "\
             SELECT \
                 `m`.*, \
-                `u`.`name` AS `user_name` \
+                `u`.`name` \
             FROM \
                 `members` AS `m` \
             JOIN \
@@ -137,7 +142,7 @@ public OnTeamRetrieve() {
                 `t`.`id` = %i;", _:gTeamDBID[id]
         );
 
-        mysql_pquery(MYSQL_DEFAULT_HANDLE, query, "OnMemberRetrieve", "i", _:id);
+        mysql_tquery(MYSQL_DEFAULT_HANDLE, query, "OnMemberRetrieve", "i", _:id);
     }
 
     return 1;
@@ -186,6 +191,33 @@ public OnZoneRetrieve(Team:teamid) {
     return 1;
 }
 
+public OnRankRetrieve(Team:teamid) {
+    new const
+        count = cache_num_rows()
+    ;
+
+    if (!count) {
+        return print("Number of ranks loaded: 0");
+    }
+
+    new
+        name[MAX_TEAM_RANK_NAME + 1],
+        TeamRank:id
+    ;
+
+    for (new i; i < count; ++i) {
+        cache_get_value(i, "name", name);
+
+        if ((id = AddTeamRank(teamid, name)) == INVALID_TEAM_RANK_ID) {
+            break;
+        }
+
+        cache_get_value_int(i, "id", _:gTeamRankDBID[teamid][id]);
+    }
+
+    return 1;
+}
+
 public OnMemberRetrieve(Team:teamid) {
     new const
         count = cache_num_rows()
@@ -201,22 +233,23 @@ public OnMemberRetrieve(Team:teamid) {
     ;
 
     for (new i; i < count; ++i) {
-        cache_get_value(i, "user_name", name);
+        cache_get_value(i, "name", name);
 
-        id = AddTeamMember(
-            teamid,
-            INVALID_PLAYER_ID,
-            name
-        );
-
-        if (id == INVALID_TEAM_MEMBER_ID) {
+        if ((id = AddTeamMember(teamid, .name = name)) == INVALID_TEAM_MEMBER_ID) {
             break;
         }
 
         cache_get_value_int(i, "id", _:gTeamMemberDBID[teamid][id]);
         cache_get_value_int(i, "user_id", _:gTeamMemberUserDBID[teamid][id]);
         cache_get_value_int(i, "rank_id", _:gTeamMemberRankDBID[teamid][id]);
+
+        foreach (new TeamRank:rankid : TeamRank[teamid]) {
+            if (gTeamRankDBID[teamid][rankid] == gTeamMemberRankDBID[teamid][id]) {
+                SetTeamMemberRank(teamid, id, rankid);
+                break;
+            }
+        }
     }
-    
+
     return 1;
 }
