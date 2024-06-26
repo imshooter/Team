@@ -65,7 +65,7 @@ stock Zone:CreateZone(Float:minX, Float:minY, Float:maxX, Float:maxY) {
         Zone:zoneid = Zone:Iter_Alloc(Zone)
     ;
 
-    if (_:zoneid == cellmin) {
+    if (_:zoneid == INVALID_ITERATOR_SLOT) {
         return INVALID_ZONE_ID;
     }
 
@@ -177,17 +177,21 @@ stock bool:GetPlayerZone(playerid, &Zone:zoneid) {
     return GetZoneAtPoint(x, y, z, zoneid);
 }
 
-/**
- * # Hooks
- */
+stock bool:ShowZonesForPlayer(playerid) {
+    if (!IsPlayerConnected(playerid)) {
+        return false;
+    }
 
-hook OnPlayerSpawn(playerid) {
     foreach (new Zone:i : Zone) {
         GangZoneShowForPlayer(playerid, gZoneData[i][E_ZONE_ZONE_ID], (ZONE_COLOR_ALPHA | (~0xFF & GetTeamColor(gZoneData[i][E_ZONE_TEAM_ID]))));
     }
 
-    return 1;
+    return true;
 }
+
+/**
+ * # Hooks
+ */
 
 hook OnPlayerEnterDynamicArea(playerid, STREAMER_TAG_AREA:areaid) {
     new

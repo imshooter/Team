@@ -4,15 +4,23 @@
 #define _INC_TEAM_
 
 #if !defined MAX_TEAMS
-    #define MAX_TEAMS (Team:128)
+    #define MAX_TEAMS (Team:32)
+#endif
+
+#if !defined MAX_TEAM_RANKS
+    #define MAX_TEAM_RANKS (TeamRank:32)
 #endif
 
 #if !defined MAX_TEAM_MEMBERS
-    #define MAX_TEAM_MEMBERS (32)
+    #define MAX_TEAM_MEMBERS (TeamMember:32)
 #endif
 
 #if !defined MAX_TEAM_NAME
     #define MAX_TEAM_NAME (32)
+#endif
+
+#if !defined MAX_TEAM_RANK_NAME
+    #define MAX_TEAM_RANK_NAME (32)
 #endif
 
 #if !defined MAX_TEAM_ABBREVIATION
@@ -20,7 +28,8 @@
 #endif
 
 #define INVALID_TEAM_ID (Team:-1)
-#define INVALID_TEAM_MEMBER_ID (-1)
+#define INVALID_TEAM_RANK_ID (TeamRank:-1)
+#define INVALID_TEAM_MEMBER_ID (TeamMember:-1)
 
 static enum E_TEAM_DATA {
     E_TEAM_NAME[MAX_TEAM_NAME + 1],
@@ -29,37 +38,75 @@ static enum E_TEAM_DATA {
     E_TEAM_MAX_MEMBERS
 };
 
+static enum E_TEAM_RANK_DATA {
+    E_TEAM_RANK_NAME[MAX_TEAM_RANK_NAME + 1]
+};
+
 static enum E_TEAM_MEMBER_DATA {
-    E_TEAM_MEMBER_NAME[MAX_PLAYER_NAME + 1],
-    E_TEAM_MEMBER_PLAYER_ID
+    TeamRank:E_TEAM_MEMBER_RANK_ID,
+    E_TEAM_MEMBER_PLAYER_ID,
+    E_TEAM_MEMBER_NAME[MAX_PLAYER_NAME + 1]
 };
 
 static
     gTeamData[MAX_TEAMS][E_TEAM_DATA],
+    gTeamRankData[MAX_TEAMS][MAX_TEAM_RANKS][E_TEAM_RANK_DATA],
     gTeamMemberData[MAX_TEAMS][MAX_TEAM_MEMBERS][E_TEAM_MEMBER_DATA]
 ;
 
 const static
-    TEAM_ITER_SIZE = _:MAX_TEAMS
+    TEAM_ITER_SIZE = _:MAX_TEAMS,
+    TEAM_RANK_ITER_SIZE = _:MAX_TEAM_RANKS,
+    TEAM_MEMBER_ITER_SIZE = _:MAX_TEAM_MEMBERS
 ;
 
 new
     Iterator:Team<Team:TEAM_ITER_SIZE>,
-    Iterator:TeamMember[MAX_TEAMS]<MAX_TEAM_MEMBERS>
+    Iterator:TeamRank[MAX_TEAMS]<TeamRank:TEAM_RANK_ITER_SIZE>,
+    Iterator:TeamMember[MAX_TEAMS]<TeamMember:TEAM_MEMBER_ITER_SIZE>
 ;
+
+/**
+ * # Functions
+ */
+
+forward Team:CreateTeam(const name[], const abbreviation[], color, maxMembers = _:MAX_TEAM_MEMBERS);
+forward bool:IsValidTeam(Team:teamid);
+forward bool:SetTeamName(Team:teamid, const name[]);
+forward bool:GetTeamName(Team:teamid, name[], size = sizeof (name));
+forward bool:SetTeamAbbreviation(Team:teamid, const abbreviation[]);
+forward bool:GetTeamAbbreviation(Team:teamid, abbreviation[], size = sizeof (abbreviation));
+forward bool:SetTeamColor(Team:teamid, color);
+forward GetTeamColor(Team:teamid);
+forward bool:SetTeamMaxMembers(Team:teamid, maxMembers);
+forward GetTeamMaxMembers(Team:teamid);
+
+forward TeamRank:AddTeamRank(Team:teamid, const name[]);
+forward bool:IsValidTeamRank(Team:teamid, TeamRank:rankid);
+forward bool:GetTeamRankName(Team:teamid, TeamRank:rankid, name[], size = sizeof (name));
+
+forward TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "", TeamRank:rankid = INVALID_TEAM_RANK_ID);
+forward bool:IsValidTeamMember(Team:teamid, TeamMember:memberid);
+forward bool:SetTeamMemberRank(Team:teamid, TeamMember:memberid, TeamRank:rankid);
+forward bool:GetTeamMemberRank(Team:teamid, TeamMember:memberid, &TeamRank:rankid);
+forward bool:SetTeamMemberPlayer(Team:teamid, TeamMember:memberid, playerid);
+forward GetTeamMemberPlayer(Team:teamid, TeamMember:memberid);
+forward bool:GetTeamMemberName(Team:teamid, TeamMember:memberid, name[], size = sizeof (name));
 
 /**
  * # Events
  */
 
 forward OnTeamCreate(Team:teamid);
+forward OnTeamRankAdd(Team:teamid, TeamRank:rankid);
+forward OnTeamMemberAdd(Team:teamid, TeamMember:memberid);
 
 /**
  * # API
  */
 
-stock Team:CreateTeam(const name[], const abbreviation[], color, maxMembers = MAX_TEAM_MEMBERS) {
-    if (!(1 <= maxMembers <= MAX_TEAM_MEMBERS)) {
+stock Team:CreateTeam(const name[], const abbreviation[], color, maxMembers = _:MAX_TEAM_MEMBERS) {
+    if (!(1 <= maxMembers <= TEAM_MEMBER_ITER_SIZE)) {
         return INVALID_TEAM_ID;
     }
 
@@ -67,7 +114,7 @@ stock Team:CreateTeam(const name[], const abbreviation[], color, maxMembers = MA
         Team:teamid = Team:Iter_Alloc(Team)
     ;
 
-    if (_:teamid == cellmin) {
+    if (_:teamid == INVALID_ITERATOR_SLOT) {
         return INVALID_TEAM_ID;
     }
 
@@ -161,8 +208,50 @@ stock GetTeamMaxMembers(Team:teamid) {
     return gTeamData[teamid][E_TEAM_MAX_MEMBERS];
 }
 
-stock AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "") {
+/**
+ * # Rank
+ */
+
+stock TeamRank:AddTeamRank(Team:teamid, const name[]) {
     if (!IsValidTeam(teamid)) {
+        return INVALID_TEAM_MEMBER_ID;
+    }
+
+    new const
+        TeamRank:rankid = TeamMember:Iter_Alloc(TeamRank[teamid])
+    ;
+
+    strcopy(gTeamRankData[teamid][rankid][E_TEAM_RANK_NAME], name);
+
+    CallLocalFunction("OnTeamRankAdd", "ii", _:teamid, _:rankid);
+
+    return rankid;
+}
+
+stock bool:IsValidTeamRank(Team:teamid, TeamRank:rankid) {
+    return IsValidTeam(teamid) && (0 <= _:rankid < TEAM_RANK_ITER_SIZE) && Iter_Contains(TeamRank[teamid], rankid);
+}
+
+stock bool:GetTeamRankName(Team:teamid, TeamRank:rankid, name[], size = sizeof (name)) {
+    if (!IsValidTeamRank(teamid, rankid)) {
+        return false;
+    }
+
+    strcopy(name, gTeamRankData[teamid][rankid][E_TEAM_RANK_NAME], size);
+
+    return true;
+}
+
+/**
+ * # Member
+ */
+
+stock TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "", TeamRank:rankid = INVALID_TEAM_RANK_ID) {
+    if (!IsValidTeam(teamid)) {
+        return INVALID_TEAM_MEMBER_ID;
+    }
+
+    if (!IsValidTeamRank(teamid, rankid)) {
         return INVALID_TEAM_MEMBER_ID;
     }
 
@@ -171,31 +260,73 @@ stock AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = ""
     }
 
     new const
-        index = Iter_Alloc(TeamMember[teamid])
+        TeamMember:memberid = TeamMember:Iter_Alloc(TeamMember[teamid])
     ;
 
-    if (!GetPlayerName(playerid, gTeamMemberData[teamid][index][E_TEAM_MEMBER_NAME])) {
-        strcopy(gTeamMemberData[teamid][index][E_TEAM_MEMBER_NAME], name);
+    if (!GetPlayerName(playerid, gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_NAME])) {
+        strcopy(gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_NAME], name);
     } else {
-        gTeamMemberData[teamid][index][E_TEAM_MEMBER_PLAYER_ID] = playerid;
+        gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_PLAYER_ID] = playerid;
     }
 
-    return index;
+    gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_RANK_ID] = rankid;
+
+    CallLocalFunction("OnTeamMemberAdd", "ii", _:teamid, _:memberid);
+
+    return memberid;
 }
 
-stock bool:IsValidTeamMember(Team:teamid, memberid) {
-    if (!IsValidTeam(teamid)) {
+stock bool:IsValidTeamMember(Team:teamid, TeamMember:memberid) {
+    return IsValidTeam(teamid) && (0 <= _:memberid < TEAM_MEMBER_ITER_SIZE) && Iter_Contains(TeamMember[teamid], memberid);
+}
+
+stock bool:SetTeamMemberRank(Team:teamid, TeamMember:memberid, TeamRank:rankid) {
+    if (!IsValidTeamMember(teamid, memberid)) {
         return false;
     }
 
-    if (!(0 <= memberid < MAX_TEAM_MEMBERS)) {
+    if (!IsValidTeamRank(teamid, rankid)) {
         return false;
-    }    
+    }
 
-    return Iter_Contains(TeamMember[teamid], memberid);
+    gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_RANK_ID] = rankid;
+
+    return true;
 }
 
-stock GetTeamMemberName(Team:teamid, memberid, name[], size = sizeof (name)) {
+stock bool:GetTeamMemberRank(Team:teamid, TeamMember:memberid, &TeamRank:rankid) {
+    if (!IsValidTeamMember(teamid, memberid)) {
+        return false;
+    }
+
+    rankid = gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_RANK_ID];
+
+    return true;
+}
+
+stock bool:SetTeamMemberPlayer(Team:teamid, TeamMember:memberid, playerid) {
+    if (!IsValidTeamMember(teamid, memberid)) {
+        return false;
+    }
+
+    if (!GetPlayerName(playerid, gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_NAME])) {
+        return false;
+    }
+
+    gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_PLAYER_ID] = playerid;
+
+    return true;
+}
+
+stock GetTeamMemberPlayer(Team:teamid, TeamMember:memberid) {
+    if (!IsValidTeamMember(teamid, memberid)) {
+        return INVALID_PLAYER_ID;
+    }
+
+    return gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_PLAYER_ID];
+}
+
+stock bool:GetTeamMemberName(Team:teamid, TeamMember:memberid, name[], size = sizeof (name)) {
     if (!IsValidTeamMember(teamid, memberid)) {
         return false;
     }

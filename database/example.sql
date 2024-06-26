@@ -13,7 +13,7 @@ CREATE TABLE `teams` (
     `name`          VARCHAR(64) NOT NULL,
     `abbreviation`  VARCHAR(4)  NOT NULL,
     `color`         INT         NOT NULL,
-    `max_members`   TINYINT     NOT NULL DEFAULT 1
+    `max_members`   TINYINT     NOT NULL DEFAULT 32
 );
 
 CREATE TABLE `zones` (

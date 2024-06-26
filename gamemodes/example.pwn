@@ -26,6 +26,7 @@ static enum E_ZONE_DATA {
 };
 
 static
+    DBID:gUserDBID[MAX_PLAYERS],
     DBID:gTeamDBID[MAX_TEAMS],
     DBID:gZoneDBID[MAX_ZONES],
     DBID:gTeamMemberDBID[MAX_TEAMS][MAX_TEAM_MEMBERS],
@@ -38,6 +39,21 @@ forward OnZoneRetrieve(Team:teamid);
 forward OnMemberRetrieve(Team:teamid);
 
 main(){}
+
+/**
+ * # Functions
+ */
+
+FetchTeam(playerid) {
+    foreach (new Team:t : Team) {
+        foreach (new TeamMember:m : TeamMember[t]) {
+            if (gTeamMemberDBID[t][m] == gUserDBID[playerid]) {
+                SetTeamMemberPlayer(t, m, playerid);
+                break;
+            }
+        }
+    }
+}
 
 /**
  * # Calls
@@ -56,6 +72,18 @@ public OnGameModeInit() {
     return 1;
 }
 
+public OnPlayerSpawn(playerid) {
+    // Show Zones
+
+    ShowZonesForPlayer(playerid);
+
+    // Load Team
+
+    FetchTeam(playerid);
+    
+    return 1;
+}
+
 public OnTeamRetrieve() {
     new const
         count = cache_num_rows()
@@ -66,9 +94,9 @@ public OnTeamRetrieve() {
     }
 
     new
-        Team:id,
         data[E_TEAM_DATA],
-        query[256]
+        query[256],
+        Team:id
     ;
 
     for (new i; i < count; ++i) {
@@ -106,7 +134,8 @@ public OnTeamRetrieve() {
             JOIN \
                 `teams` AS `t` ON `m`.`team_id` = `t`.`id` \
             WHERE \
-                `t`.`id` = %i;", _:gTeamDBID[id]);
+                `t`.`id` = %i;", _:gTeamDBID[id]
+        );
 
         mysql_pquery(MYSQL_DEFAULT_HANDLE, query, "OnMemberRetrieve", "i", _:id);
     }
@@ -124,8 +153,8 @@ public OnZoneRetrieve(Team:teamid) {
     }
 
     new
-        Zone:id,
-        data[E_ZONE_DATA]
+        data[E_ZONE_DATA],
+        Zone:id
     ;
 
     for (new i; i < count; ++i) {
@@ -167,25 +196,26 @@ public OnMemberRetrieve(Team:teamid) {
     }
 
     new
-        index, name[MAX_PLAYER_NAME + 1]
+        name[MAX_PLAYER_NAME + 1],
+        TeamMember:id
     ;
 
     for (new i; i < count; ++i) {
         cache_get_value(i, "user_name", name);
 
-        index = AddTeamMember(
+        id = AddTeamMember(
             teamid,
             INVALID_PLAYER_ID,
             name
         );
 
-        if (index == INVALID_TEAM_MEMBER_ID) {
-            continue;
+        if (id == INVALID_TEAM_MEMBER_ID) {
+            break;
         }
 
-        cache_get_value_int(i, "id", _:gTeamMemberDBID[teamid][index]);
-        cache_get_value_int(i, "user_id", _:gTeamMemberUserDBID[teamid][index]);
-        cache_get_value_int(i, "rank_id", _:gTeamMemberRankDBID[teamid][index]);
+        cache_get_value_int(i, "id", _:gTeamMemberDBID[teamid][id]);
+        cache_get_value_int(i, "user_id", _:gTeamMemberUserDBID[teamid][id]);
+        cache_get_value_int(i, "rank_id", _:gTeamMemberRankDBID[teamid][id]);
     }
     
     return 1;
