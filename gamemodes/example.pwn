@@ -1,6 +1,7 @@
 #define MAX_PLAYERS (5)
 
 #include <open.mp>
+#include <sscanf2>
 #include <mysql>
 #include <streamer>
 
@@ -11,10 +12,12 @@
 #include "lib\team.pwn"
 #include "lib\zone.pwn"
 
+#define HEX_COLOR_LENGTH (7)
+
 static enum E_TEAM_DATA {
-    E_TEAM_NAME[MAX_TEAM_NAME + 1],
-    E_TEAM_ABBR[MAX_TEAM_ABBREVIATION + 1],
-    E_TEAM_COLOR,
+    E_TEAM_NAME[MAX_TEAM_NAME],
+    E_TEAM_ABBR[MAX_TEAM_ABBREVIATION],
+    E_TEAM_COLOR[HEX_COLOR_LENGTH],
     E_TEAM_MAX_MEMBERS
 };
 
@@ -82,6 +85,8 @@ public OnPlayerSpawn(playerid) {
     // Load Team
 
     FetchTeam(playerid);
+
+    SendClientMessage(0, -1, "{C800C8}Hi, Shooter!");
     
     return 1;
 }
@@ -98,19 +103,22 @@ public OnTeamRetrieve() {
     new
         data[E_TEAM_DATA],
         query[256],
-        Team:id
+        Team:id,
+        color
     ;
 
     for (new i; i < count; ++i) {
         cache_get_value(i, "name", data[E_TEAM_NAME]);
         cache_get_value(i, "abbreviation", data[E_TEAM_ABBR]);
-        cache_get_value_int(i, "color", data[E_TEAM_COLOR]);
+        cache_get_value(i, "color", data[E_TEAM_COLOR]);
         cache_get_value_int(i, "max_members", data[E_TEAM_MAX_MEMBERS]);
+
+        sscanf(data[E_TEAM_COLOR], "m", color);
 
         id = CreateTeam(
             data[E_TEAM_NAME],
             data[E_TEAM_ABBR],
-            data[E_TEAM_COLOR],
+            color,
             data[E_TEAM_MAX_MEMBERS]
         );
 
