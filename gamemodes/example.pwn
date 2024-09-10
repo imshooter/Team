@@ -85,8 +85,6 @@ public OnPlayerSpawn(playerid) {
     // Load Team
 
     FetchTeam(playerid);
-
-    SendClientMessage(0, -1, "{C800C8}Hi, Shooter!");
     
     return 1;
 }
