@@ -3,14 +3,12 @@
 #include <open.mp>
 #include <sscanf2>
 #include <mysql>
-#include <streamer>
 
-#include <YSI_Coding\y_hooks>
-#include <YSI_Data\y_iterate>
-#include <YSI_Extra\y_inline_mysql>
+// Y
+#include <YSI_Visual\y_commands>
 
-#include "lib\team.pwn"
-#include "lib\zone.pwn"
+// T
+#include <T\T>
 
 #define HEX_COLOR_LENGTH (7)
 
@@ -21,17 +19,17 @@ static enum E_TEAM_DATA {
     E_TEAM_MAX_MEMBERS
 };
 
-static enum E_ZONE_DATA {
-    Float:E_ZONE_MIN_X,
-    Float:E_ZONE_MIN_Y,
-    Float:E_ZONE_MAX_X,
-    Float:E_ZONE_MAX_Y
+static enum E_HOOD_DATA {
+    Float:E_HOOD_MIN_X,
+    Float:E_HOOD_MIN_Y,
+    Float:E_HOOD_MAX_X,
+    Float:E_HOOD_MAX_Y
 };
 
 static
     DBID:gUserDBID[MAX_PLAYERS],
     DBID:gTeamDBID[MAX_TEAMS],
-    DBID:gZoneDBID[MAX_ZONES],
+    DBID:gHoodDBID[MAX_HOODS],
     DBID:gTeamRankDBID[MAX_TEAMS][MAX_TEAM_RANKS],
     DBID:gTeamMemberDBID[MAX_TEAMS][MAX_TEAM_MEMBERS],
     DBID:gTeamMemberUserDBID[MAX_TEAMS][MAX_TEAM_MEMBERS],
@@ -39,7 +37,7 @@ static
 ;
 
 forward OnTeamRetrieve();
-forward OnZoneRetrieve(Team:teamid);
+forward OnHoodRetrieve(Team:teamid);
 forward OnRankRetrieve(Team:teamid);
 forward OnMemberRetrieve(Team:teamid);
 
@@ -72,15 +70,15 @@ public OnGameModeInit() {
     // Retrieve
 
     mysql_tquery(MYSQL_DEFAULT_HANDLE, "SELECT * FROM `teams`;", "OnTeamRetrieve");
-    mysql_tquery(MYSQL_DEFAULT_HANDLE, "SELECT * FROM `zones` WHERE `team_id` IS NULL;", "OnZoneRetrieve", "i", _:INVALID_TEAM_ID);
+    mysql_tquery(MYSQL_DEFAULT_HANDLE, "SELECT * FROM `hoods` WHERE `team_id` IS NULL;", "OnHoodRetrieve", "i", _:INVALID_TEAM_ID);
 
     return 1;
 }
 
 public OnPlayerSpawn(playerid) {
-    // Show Zones
+    // Show Hoods
 
-    ShowZonesForPlayer(playerid);
+    ShowHoodsForPlayer(playerid);
 
     // Load Team
 
@@ -126,8 +124,8 @@ public OnTeamRetrieve() {
 
         cache_get_value_int(i, "id", _:gTeamDBID[id]);
 
-        mysql_format(MYSQL_DEFAULT_HANDLE, query, sizeof (query), "SELECT * FROM `zones` WHERE `team_id` = %i;", _:gTeamDBID[id]);
-        mysql_tquery(MYSQL_DEFAULT_HANDLE, query, "OnZoneRetrieve", "i", _:id);
+        mysql_format(MYSQL_DEFAULT_HANDLE, query, sizeof (query), "SELECT * FROM `hoods` WHERE `team_id` = %i;", _:gTeamDBID[id]);
+        mysql_tquery(MYSQL_DEFAULT_HANDLE, query, "OnHoodRetrieve", "i", _:id);
 
         mysql_format(MYSQL_DEFAULT_HANDLE, query, sizeof (query), "SELECT * FROM `ranks` WHERE `team_id` = %i;", _:gTeamDBID[id]);
         mysql_tquery(MYSQL_DEFAULT_HANDLE, query, "OnRankRetrieve", "i", _:id);
@@ -154,44 +152,44 @@ public OnTeamRetrieve() {
     return 1;
 }
 
-public OnZoneRetrieve(Team:teamid) {
+public OnHoodRetrieve(Team:teamid) {
     new const
         count = cache_num_rows()
     ;
 
     if (!count) {
-        return print("Number of zones loaded: 0");
+        return print("Number of hoods loaded: 0");
     }
 
     new
-        data[E_ZONE_DATA],
-        Zone:id
+        data[E_HOOD_DATA],
+        Hood:id
     ;
 
     for (new i; i < count; ++i) {
-        cache_get_value_float(i, "min_x", data[E_ZONE_MIN_X]);
-        cache_get_value_float(i, "min_y", data[E_ZONE_MIN_Y]);
-        cache_get_value_float(i, "max_x", data[E_ZONE_MAX_X]);
-        cache_get_value_float(i, "max_y", data[E_ZONE_MAX_Y]);
+        cache_get_value_float(i, "min_x", data[E_HOOD_MIN_X]);
+        cache_get_value_float(i, "min_y", data[E_HOOD_MIN_Y]);
+        cache_get_value_float(i, "max_x", data[E_HOOD_MAX_X]);
+        cache_get_value_float(i, "max_y", data[E_HOOD_MAX_Y]);
 
-        id = CreateZone(
-            data[E_ZONE_MIN_X],
-            data[E_ZONE_MIN_Y],
-            data[E_ZONE_MAX_X],
-            data[E_ZONE_MAX_Y]
+        id = CreateHood(
+            data[E_HOOD_MIN_X],
+            data[E_HOOD_MIN_Y],
+            data[E_HOOD_MAX_X],
+            data[E_HOOD_MAX_Y]
         );
 
-        if (id == INVALID_ZONE_ID) {
+        if (id == INVALID_HOOD_ID) {
             break;
         }
 
-        cache_get_value_int(i, "id", _:gZoneDBID[id]);
+        cache_get_value_int(i, "id", _:gHoodDBID[id]);
 
         if (teamid == INVALID_TEAM_ID) {
             continue;
         }
 
-        AddZoneToTeam(id, teamid);
+        SetHoodTeam(id, teamid);
     }
 
     return 1;

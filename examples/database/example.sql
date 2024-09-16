@@ -16,14 +16,14 @@ CREATE TABLE `teams` (
     `max_members`   TINYINT         UNSIGNED    NOT NULL DEFAULT 32
 );
 
-CREATE TABLE `zones` (
+CREATE TABLE `hoods` (
     `id`            TINYINT         UNSIGNED    NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `min_x`         FLOAT                       NOT NULL,
     `min_y`         FLOAT                       NOT NULL,
     `max_x`         FLOAT                       NOT NULL,
     `max_y`         FLOAT                       NOT NULL,
     `team_id`       TINYINT         UNSIGNED    NULL,
-    CONSTRAINT `fk_zones_teams` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT `fk_hoods_teams` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE `users` (
@@ -61,11 +61,11 @@ VALUES
     ('Varrio Los Aztecas', 'VLA', '00C8FF', 32);
 
 --
--- Zones
+-- hoods
 --
 
 INSERT INTO
-    `zones` (`min_x`, `min_y`, `max_x`, `max_y`, `team_id`)
+    `hoods` (`min_x`, `min_y`, `max_x`, `max_y`, `team_id`)
 VALUES
     ( 647.711975, -2173.290039,  930.221008, -1804.209960, 1),
     ( 851.448974, -1804.209960, 1046.150024, -1577.589965, 1),
@@ -108,7 +108,7 @@ VALUES
     ( 952.663024, -1130.839965, 1096.469970,  -937.184020, 2),
     (1096.469970, -1130.839965, 1252.329956, -1026.329956, 2),
     (1252.329956, -1130.849975, 1378.329956, -1026.329956, 2),
-    (1252.329956,  -926.999023, 1357.000000,  -910.169982, 2),
+ -- (1252.329956,  -926.999023, 1357.000000,  -910.169982, 2),
     (1252.329956, -1026.329956, 1391.050048,  -926.999023, 2),
 
     (1812.619995, -1350.719970, 2056.860107, -1100.819946, 1),
