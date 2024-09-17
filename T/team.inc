@@ -74,35 +74,38 @@ new stock
 ;
 
 static
-    Team:gCurrentTeamID[MAX_PLAYERS] = { INVALID_TEAM_ID, ... }
+    Team:gInTeamID[MAX_PLAYERS] = { INVALID_TEAM_ID, ... }
 ;
 
 /**
  * # Functions
  */
 
-forward Team:CreateTeam(const name[], const abbreviation[], color, maxMembers = _:MAX_TEAM_MEMBERS);
-forward bool:IsValidTeam(Team:teamid);
-forward bool:SetTeamName(Team:teamid, const name[]);
-forward bool:GetTeamName(Team:teamid, name[], size = sizeof (name));
-forward bool:SetTeamAbbreviation(Team:teamid, const abbreviation[]);
-forward bool:GetTeamAbbreviation(Team:teamid, abbreviation[], size = sizeof (abbreviation));
-forward bool:SetTeamColor(Team:teamid, color);
-forward GetTeamColor(Team:teamid);
-forward bool:SetTeamMaxMembers(Team:teamid, maxMembers);
-forward GetTeamMaxMembers(Team:teamid);
+stock Team:CreateTeam(const name[], const abbreviation[], color, maxMembers = _:MAX_TEAM_MEMBERS);
+stock bool:IsValidTeam(Team:teamid);
+stock bool:SetTeamName(Team:teamid, const name[]);
+stock bool:GetTeamName(Team:teamid, name[], size = sizeof (name));
+stock bool:SetTeamAbbreviation(Team:teamid, const abbreviation[]);
+stock bool:GetTeamAbbreviation(Team:teamid, abbreviation[], size = sizeof (abbreviation));
+stock bool:SetTeamColor(Team:teamid, color);
+stock GetTeamColor(Team:teamid);
+stock bool:SetTeamMaxMembers(Team:teamid, maxMembers);
+stock GetTeamMaxMembers(Team:teamid);
 
-forward TeamRank:AddTeamRank(Team:teamid, const name[]);
-forward bool:IsValidTeamRank(Team:teamid, TeamRank:rankid);
-forward bool:GetTeamRankName(Team:teamid, TeamRank:rankid, name[], size = sizeof (name));
+stock TeamRank:AddTeamRank(Team:teamid, const name[]);
+stock bool:IsValidTeamRank(Team:teamid, TeamRank:rankid);
+stock bool:GetTeamRankName(Team:teamid, TeamRank:rankid, name[], size = sizeof (name));
 
-forward TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "", TeamRank:rankid = INVALID_TEAM_RANK_ID);
-forward bool:IsValidTeamMember(Team:teamid, TeamMember:memberid);
-forward bool:SetTeamMemberRank(Team:teamid, TeamMember:memberid, TeamRank:rankid);
-forward bool:GetTeamMemberRank(Team:teamid, TeamMember:memberid, &TeamRank:rankid);
-forward bool:SetTeamMemberPlayer(Team:teamid, TeamMember:memberid, playerid);
-forward GetTeamMemberPlayer(Team:teamid, TeamMember:memberid);
-forward bool:GetTeamMemberName(Team:teamid, TeamMember:memberid, name[], size = sizeof (name));
+stock TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const name[] = "");
+stock bool:IsValidTeamMember(Team:teamid, TeamMember:memberid);
+stock bool:SetTeamMemberRank(Team:teamid, TeamMember:memberid, TeamRank:rankid);
+stock bool:GetTeamMemberRank(Team:teamid, TeamMember:memberid, &TeamRank:rankid);
+stock bool:SetTeamMemberPlayer(Team:teamid, TeamMember:memberid, playerid);
+stock GetTeamMemberPlayer(Team:teamid, TeamMember:memberid);
+stock bool:GetTeamMemberName(Team:teamid, TeamMember:memberid, name[], size = sizeof (name));
+
+stock bool:IsPlayerInAnyTeam(playerid);
+stock Team:GetPlayerTeamID(playerid, &Team:teamid = INVALID_TEAM_ID);
 
 /**
  * # Events
@@ -283,7 +286,7 @@ stock TeamMember:AddTeamMember(Team:teamid, playerid = INVALID_PLAYER_ID, const 
     ;
 
     if (GetPlayerName(playerid, gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_NAME])) {
-        gCurrentTeamID[playerid] = teamid;
+        gInTeamID[playerid] = teamid;
         gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_PLAYER_ID] = playerid;
     } else {
         strcopy(gTeamMemberData[teamid][memberid][E_TEAM_MEMBER_NAME], name);
@@ -367,15 +370,17 @@ stock bool:IsPlayerInAnyTeam(playerid) {
         return false;
     }
 
-    return (gCurrentTeamID[playerid] != INVALID_TEAM_ID);
+    return (gInTeamID[playerid] != INVALID_TEAM_ID);
 }
 
-stock bool:GetCurrentTeam(playerid, &Team:teamid) {
+stock Team:GetPlayerTeamID(playerid, &Team:teamid = INVALID_TEAM_ID) {
     if (!IsPlayerConnected(playerid)) {
-        return false;
+        teamid = INVALID_TEAM_ID;
+        
+        return teamid;
     }
 
-    teamid = gCurrentTeamID[playerid];
+    teamid = gInTeamID[playerid];
 
-    return true;
+    return teamid;
 }

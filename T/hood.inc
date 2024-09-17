@@ -48,8 +48,11 @@ const static
 
 new stock
     Iterator:Hood<Hood:HOOD_ITER_SIZE>,
-    Iterator:PlayerAtHood[MAX_HOODS]<MAX_PLAYERS>,
-    Iterator:HoodFromTeam[MAX_TEAMS]<Hood:HOOD_ITER_SIZE>
+    Iterator:PlayerAtHood<HOOD_ITER_SIZE, MAX_PLAYERS>
+;
+
+static
+    Hood:gInHoodID[MAX_PLAYERS] = { INVALID_HOOD_ID, ... }
 ;
 
 /**
@@ -58,12 +61,15 @@ new stock
 
 forward Hood:CreateHood(Float:minX, Float:minY, Float:maxX, Float:maxY);
 forward bool:IsValidHood(Hood:hoodid);
+forward bool:GetHoodPos(Hood:hoodid, &Float:minX, &Float:minY, &Float:maxX, &Float:maxY);
 forward bool:SetHoodTeam(Hood:hoodid, Team:teamid);
 forward bool:RemoveHoodFromTeam(Hood:hoodid);
 forward bool:HasHoodTeam(Hood:hoodid);
 forward bool:GetHoodTeam(Hood:hoodid, &Team:teamid);
+forward GetHoodZoneID(Hood:hoodid);
 forward bool:GetHoodAtPoint(Float:x, Float:y, Float:z, &Hood:hoodid);
-forward bool:GetPlayerHood(playerid, &Hood:hoodid);
+forward bool:IsPlayerInAnyHood(playerid);
+forward Hood:GetPlayerHoodID(playerid, &Hood:hoodid = INVALID_HOOD_ID);
 forward bool:ShowHoodsForPlayer(playerid);
 
 /**
@@ -138,7 +144,6 @@ stock bool:SetHoodTeam(Hood:hoodid, Team:teamid) {
     }
 
     gHoodData[hoodid][E_HOOD_TEAM_ID] = teamid;
-    Iter_Add(HoodFromTeam[teamid], hoodid);
 
     return true;
 }
@@ -157,7 +162,6 @@ stock bool:RemoveHoodFromTeam(Hood:hoodid) {
     ;
 
     gHoodData[hoodid][E_HOOD_TEAM_ID] = INVALID_TEAM_ID;
-    Iter_Remove(HoodFromTeam[teamid], hoodid);
 
     return true;
 }
@@ -207,18 +211,24 @@ stock bool:GetHoodAtPoint(Float:x, Float:y, Float:z, &Hood:hoodid) {
     return false;
 }
 
-stock bool:GetPlayerHood(playerid, &Hood:hoodid) {
-    new
-        Float:x,
-        Float:y,
-        Float:z
-    ;
-
-    if (!GetPlayerPos(playerid, x, y, z)) {
+stock bool:IsPlayerInAnyHood(playerid) {
+    if (!IsPlayerConnected(playerid)) {
         return false;
     }
 
-    return GetHoodAtPoint(x, y, z, hoodid);
+    return (gInHoodID[playerid] != INVALID_HOOD_ID);
+}
+
+stock Hood:GetPlayerHoodID(playerid, &Hood:hoodid = INVALID_HOOD_ID) {
+    if (!IsPlayerConnected(playerid)) {
+        hoodid = INVALID_HOOD_ID;
+        
+        return hoodid;
+    }
+
+    hoodid = gInHoodID[playerid];
+
+    return hoodid;
 }
 
 stock bool:ShowHoodsForPlayer(playerid) {
@@ -238,21 +248,24 @@ stock bool:ShowHoodsForPlayer(playerid) {
  */
 
 hook OnPlayerEnterDynamicArea(playerid, STREAMER_TAG_AREA:areaid) {
-    new
-        data[2]
-    ;
-
-    Streamer_GetArrayData(STREAMER_TYPE_AREA, areaid, E_STREAMER_EXTRA_ID, data);
-
-    if (data[0] == HOOD_STREAMER_IDENTIFIER) {
-        new const
-            Hood:hoodid = Hood:data[1]
+    if (gInHoodID[playerid] == INVALID_HOOD_ID) {
+        new
+            data[2]
         ;
 
-        Iter_Add(PlayerAtHood[hoodid], playerid);
-        
-        if (CallLocalFunction("OnPlayerEnterHood", "ii", playerid, _:hoodid)) {
-            return ~1;
+        Streamer_GetArrayData(STREAMER_TYPE_AREA, areaid, E_STREAMER_EXTRA_ID, data);
+
+        if (data[0] == HOOD_STREAMER_IDENTIFIER) {
+            new const
+                Hood:hoodid = Hood:data[1]
+            ;
+
+            gInHoodID[playerid] = hoodid;
+            Iter_Add(PlayerAtHood<_:hoodid>, playerid);
+            
+            if (CallLocalFunction("OnPlayerEnterHood", "ii", playerid, _:hoodid)) {
+                return ~1;
+            }
         }
     }
     
@@ -260,23 +273,35 @@ hook OnPlayerEnterDynamicArea(playerid, STREAMER_TAG_AREA:areaid) {
 }
 
 hook OnPlayerLeaveDynamicArea(playerid, STREAMER_TAG_AREA:areaid) {
-    new
-        data[2]
-    ;
-
-    Streamer_GetArrayData(STREAMER_TYPE_AREA, areaid, E_STREAMER_EXTRA_ID, data);
-
-    if (data[0] == HOOD_STREAMER_IDENTIFIER) {
-        new const
-            Hood:hoodid = Hood:data[1]
+    if (gInHoodID[playerid] != INVALID_HOOD_ID) {
+        new
+            data[2]
         ;
-        
-        Iter_Remove(PlayerAtHood[hoodid], playerid);
 
-        if (CallLocalFunction("OnPlayerLeaveHood", "ii", playerid, _:hoodid)) {
-            return ~1;
+        Streamer_GetArrayData(STREAMER_TYPE_AREA, areaid, E_STREAMER_EXTRA_ID, data);
+
+        if (data[0] == HOOD_STREAMER_IDENTIFIER) {
+            new const
+                Hood:hoodid = Hood:data[1]
+            ;
+        
+            gInHoodID[playerid] = INVALID_HOOD_ID;
+            Iter_Remove(PlayerAtHood<_:hoodid>, playerid);
+
+            if (CallLocalFunction("OnPlayerLeaveHood", "ii", playerid, _:hoodid)) {
+                return ~1;
+            }
         }
     }
     
+    return 1;
+}
+
+hook OnPlayerDisconnect(playerid, reason) {
+    if (gInHoodID[playerid] != INVALID_HOOD_ID) {
+        Iter_Remove(PlayerAtHood<_:gInHoodID[playerid]>, playerid);
+        gInHoodID[playerid] = INVALID_HOOD_ID;
+    }
+
     return 1;
 }
